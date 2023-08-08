@@ -1,0 +1,57 @@
+-- 1. Provide a query that gives the instruction to total expenditure ratio.
+SELECT state, ROUND(AVG(instruction_expenditure2019 / total_expenditure2019::numeric), 3) AS instruction_expenditure_ratio FROM nces
+GROUP BY state
+ORDER BY instruction_expenditure_ratio DESC;
+
+-- 2. Provide a query of the instruction to total expenditure ratio and rent price changes in 2019.
+SELECT t1.state, ROUND(AVG(rent_2019 - 100)/100::numeric, 2) AS rent_change, 
+	ROUND(AVG(instruction_expenditure2019 / total_expenditure2019::numeric), 2) AS teaching_related_expenditure FROM nces AS t1
+INNER JOIN bea AS t2
+ON t1.state = t2.state
+GROUP BY t1.state;
+
+-- 3. Provide a query of the average total expenditure based on the political affiliation of each state.
+SELECT political_affiliation, SUM(student), ROUND(AVG(title_i_expenditure), 2) * 1000 AS average_expenditure FROM grants
+GROUP BY political_affiliation; 
+
+-- 4. Provide a query that outputs the states that received the highest and lowest Title I grants for the disadvantaged. 
+SELECT state, student, title_I_grant FROM (SELECT state, title_I_grant, student,
+								  DENSE_RANK() OVER(ORDER BY title_I_grant DESC) AS ranked FROM grants) AS t1
+WHERE ranked = 1 OR ranked = 51;
+
+-- 5. Provide a query that shows the Title I allocations and number of students in each state. 
+SELECT state, student, title_i_grant FROM grants
+ORDER BY title_I_grant;
+
+-- 6. Provide a query of the correlation between the number of students and Title I allocations.
+SELECT CORR(student, title_i_grant) FROM grants;
+
+-- 7. Provide a query of the fraction of states with 0 carryover that are democratic.
+SELECT SUM(CASE WHEN political_affiliation = 'democratic' THEN 1 ELSE 0 END) / COUNT(*)::float AS ratio FROM (SELECT * FROM grants
+WHERE title_I_carryover = 0
+ORDER BY student) AS t1; 
+
+---
+
+-- 1. What proportion of the original Title I grant from the prior fiscal year was expended in the current year for each state? 
+
+SELECT t1.state, CASE 
+	WHEN t2.title_i_grant = 0 THEN 0 
+	ELSE ROUND((t1.title_i_carryover / t2.title_i_grant::numeric), 2) * 100
+	END AS carryover_percent
+FROM grants AS t1
+INNER JOIN grant2018 AS t2
+ON t1.state = t2.state 
+ORDER BY carryover_percent DESC;
+
+-- 2. Is there a correlation between the number of students in a state and the Title I allocations? 
+SELECT CORR(student, title_i_grant) FROM grants;
+
+-- 3. What is the distribution of Title I allocations and expenditures per pupil across all states? 
+
+SELECT state, title_i_pupil FROM grants;
+
+-- 4. What percentage of the overall current expenditures is dedicated to Title I in each state?
+
+SELECT state, total_expenditure, title_i_expenditure, ROUND((title_i_expenditure / total_expenditure::numeric), 2) * 100 
+	AS ratio FROM grants;
